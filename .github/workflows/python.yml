@@ -1,0 +1,36 @@
+name: Python
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install tooling dependencies
+        run: |
+          pip install --upgrade setuptools wheel pip
+          pip install mypy black
+          pip install -r tests/requirements.txt
+      - name: Formatting check
+        run: black --check pitcher/
+      - name: Type Check
+        run: mypy pitcher/
+      - name: Build
+        run: python setup.py develop
+      - name: Test
+        run: pytest --cov-report=xml
+      - name: Package
+        run: python setup.py sdist bdist_wheel

@@ -1,0 +1,69 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: "Api Example Stack"
+
+Globals:
+  Function:
+    Runtime: python3.7
+    MemorySize: 256
+
+Resources:
+
+  AccessLogs:
+    Type: AWS::Logs::LogGroup
+
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+      AccessLogSetting:
+        DestinationArn: !GetAtt AccessLogs.Arn
+        Format: >-
+          {"requestId":"$context.requestId", "ip": "$context.identity.sourceIp",
+          "caller":"$context.identity.caller",
+          "user":"$context.identity.user","requestTime":"$context.requestTime",
+          "eventType":"$context.eventType","routeKey":"$context.routeKey",
+          "status":"$context.status","connectionId":"$context.connectionId"}
+      TracingEnabled: true
+
+  APIHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: hello.app
+      Tracing: Active
+      Events:
+        Hello:
+          Type: Api
+          Properties:
+            RestApiId: !Ref Api
+            Path: /hello/{name}
+            Method: ANY
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: v2
+      AccessLogSettings:
+        DestinationArn: !GetAtt AccessLogs.Arn
+        Format: >-
+          {"requestId": "$context.requestId", 
+          "ip": "$context.identity.sourceIp", 
+          "requestTime": "$context.requestTime", 
+          "routeKey": "$context.routeKey", 
+          "status": "$context.status"}
+
+  HttpApiHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: hello.app
+      Tracing: Active
+      Events:
+        Hello:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /hello/{name}
+            Method: ANY
+            

@@ -1,0 +1,7 @@
+pytest
+pytest-cov
+pytest-freezegun
+pytest-mock
+pytest-xdist
+pytest-mypy
+aws-lambda-context

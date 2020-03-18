@@ -1,0 +1,2 @@
+loguru
+../../dist/pitcher-0.1.tar.gz
