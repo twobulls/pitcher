@@ -1,13 +1,16 @@
-name: Python
+name: build
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  release:
+    types:
+      - created
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,16 +24,57 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install tooling dependencies
         run: |
-          pip install --upgrade setuptools wheel pip
           pip install mypy black
           pip install -r tests/requirements.txt
       - name: Formatting check
         run: black --check pitcher/
-      - name: Type Check
+      - name: Type check
         run: mypy pitcher/
-      - name: Build
-        run: python setup.py develop
       - name: Test
         run: pytest --cov-report=xml
+      - name: Build
+        run: python setup.py develop
+
+  package:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          pip install --upgrade setuptools wheel pip
+          pip install twine
       - name: Package
         run: python setup.py sdist bdist_wheel
+      - name: Check packages
+        run: twine check dist/*
+
+  release:
+    needs: [test, package]
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' && github.event.action == 'created' }}
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set release version
+        run: echo ::set-env name=VERSION::${GITHUB_REF#refs/tags/}
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.7
+      - name: Install dependencies
+        run: |
+          pip install --upgrade setuptools wheel pip
+          pip install twine
+      - name: Package
+        run: python setup.py sdist bdist_wheel
+      - name: Check packages
+        run: twine check dist/*
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
